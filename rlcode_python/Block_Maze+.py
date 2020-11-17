@@ -1,0 +1,123 @@
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+
+def environment(state1, state2, action, Time):
+	#action0 == up
+	#action1 == down
+	#action2 == left
+	#action3 == right
+
+
+	if Time < 1000:
+		Obstruct = [0,1,2,3,4,5,6,7]
+	else:
+		Obstruct = [1,2,3,4,5,6,7,8]
+	if action == 0:
+		newstate1 = state1 - 1
+		newstate2 = state2
+	if action == 1:
+		newstate1 = state1 + 1
+		newstate2 = state2
+	if action == 2:
+		newstate1 = state1
+		newstate2 = state2 - 1
+	if action == 3:
+		newstate1 = state1
+		newstate2 = state2 + 1
+	if newstate1 < 0 or newstate1 > 5:
+		newstate1 = state1
+	if newstate2 < 0 or newstate2 > 8:
+		newstate2 = state2  
+	if newstate1 == 3 and (newstate2 in Obstruct):
+		newstate1 = state1
+		newstate2 = state2
+	return newstate1, newstate2
+def run(Time, valuespace, observation, n, observationlist, plotreward, cumulativereward, valuechoose, statechoose):
+	alpha = 1
+	gamma = 0.95
+	num = 0
+	tor = 0
+	state1 = 5
+	state2 = 3
+	while True:
+		Time += 1
+		num += 1
+		ka = 0.0001
+		#print(Time)
+		#print(state1, state2)
+		#if np.random.binomial(1,0.1) == 1:
+		#	action = np.random.choice([0,1,2,3])
+		#else:
+		timegreedy = valuespace[state1, state2, :] + ka * np.sqrt((Time * np.ones(4) - valuechoose[state1, state2,:]))
+		action = np.random.choice([action_ for action_, value_ in enumerate(timegreedy) if value_ == timegreedy.max()])
+		next_state1, next_state2 = environment(state1, state2, action, Time)
+		#print(next_state1, next_state2, action)
+		if (state1, state2) not in statechoose:
+			statechoose.append((state1, state2))
+		if (state1, state2, action) not in observationlist:
+			observationlist.append((state1, state2, action))
+		if next_state1 == 0 and next_state2 == 8:
+			reward = 1
+		else:
+			reward = 0
+		tor = Time - valuechoose[state1, state2, action]
+		reward = reward + ka * np.sqrt(tor)
+		valuechoose[state1, state2, action] = Time
+		observation[state1, state2, action, 0] = reward
+		observation[state1, state2, action, 1] = next_state1
+		observation[state1, state2, action, 2] = next_state2
+		valuespace[state1, state2, action] = valuespace[state1, state2, action] + alpha * ( reward + gamma * valuespace[next_state1, next_state2, :].max() - valuespace[state1, state2, action])
+		for j in range(n):
+			#np.random.shuffle(observationlist)
+			np.random.shuffle(statechoose)
+			action_in_planning = np.random.choice([0,1,2,3])
+			#state1_in_planning, state2_in_planning, action_in_planning = observationlist[0]
+			state1_in_planning, state2_in_planning = statechoose[0]
+			if (state1_in_planning, state2_in_planning, action_in_planning) in observationlist:
+				reward_in_planning = observation[state1_in_planning, state2_in_planning, action_in_planning, 0]
+				new_state1_in_planning = observation[state1_in_planning, state2_in_planning, action_in_planning, 1]
+				new_state2_in_planning = observation[state1_in_planning, state2_in_planning, action_in_planning, 2]
+				valuespace[state1_in_planning, state2_in_planning, action_in_planning] = valuespace[state1_in_planning, state2_in_planning, action_in_planning] + alpha * ( reward_in_planning + gamma * valuespace[int(new_state1_in_planning), int(new_state2_in_planning), :].max() - valuespace[state1_in_planning, state2_in_planning, action_in_planning])
+			else:
+				valuespace[state1_in_planning, state2_in_planning, action_in_planning] = valuespace[state1_in_planning, state2_in_planning, action_in_planning] + alpha * ( gamma * valuespace[state1_in_planning, state2_in_planning, :].max() - valuespace[state1_in_planning, state2_in_planning, action_in_planning])				
+		plotreward.append(cumulativereward)
+		state1 = next_state1
+		state2 = next_state2
+		if next_state1 == 0 and next_state2 == 8:
+			cumulativereward += 1
+			return valuespace, observation, Time, observationlist, plotreward, cumulativereward, num, valuechoose, statechoose
+
+
+def begin():
+	n = 10
+	NUM = [] 
+	Time = 0
+	plotreward = []
+	statechoose = []
+	valuechoose = np.zeros([6,9,4])
+	cumulativereward = 0
+	observationlist = []
+	valuespace = np.zeros([6,9,4])
+	observation = np.zeros([6,9,4,3])
+	while Time < 3000:
+		valuespace, observation, Time, observationlist, plotreward, cumulativereward, num, valuechoose, statechoose = run(Time, valuespace, observation, n, observationlist, plotreward, cumulativereward, valuechoose, statechoose)
+		NUM.append(num)
+		print(NUM)
+	return plotreward[0:3000]
+	
+	#plt.plot(plotreward)
+	#plt.xlabel('+')
+	#plt.show()
+
+if __name__ == '__main__':
+	PLOTR = np.zeros([3000,20])
+	for i in range(20):
+		PLOTR[:,i]=begin()
+		print(PLOTR[:,i])
+	plt.plot(np.sum(PLOTR,axis=1)/20)
+	plt.show()
+
+
+
+
